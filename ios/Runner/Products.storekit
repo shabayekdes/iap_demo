@@ -12,7 +12,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "com.example.iap_demo.month_pass",
+      "productID" : "com.sumaya369.month_pass",
       "referenceName" : "Month Pass",
       "type" : "NonRenewingSubscription"
     }
@@ -29,7 +29,7 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "com.example.iap_demo.coins",
+      "productID" : "com.sumaya369.coins",
       "referenceName" : "100 Coins",
       "type" : "Consumable"
     }

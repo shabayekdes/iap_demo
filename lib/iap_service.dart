@@ -7,9 +7,9 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 /// configuration file (for local testing) and in App Store Connect
 /// (for sandbox / production).
 class IapProducts {
-  static const String coins = 'com.example.iap_demo.coins'; // consumable
+  static const String coins = 'com.sumaya369.coins'; // consumable
   static const String monthPass =
-      'com.example.iap_demo.month_pass'; // non-renewing subscription
+      'com.sumaya369.month_pass'; // non-renewing subscription
 
   static const Set<String> ids = {coins, monthPass};
 }
