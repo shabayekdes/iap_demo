@@ -23,9 +23,9 @@ workflows:
     environment:
       ios_signing:
         distribution_type: ad_hoc
-        bundle_identifier: com.sumaya369
+        bundle_identifier: app.sumaya369.net
       vars:
-        BUNDLE_ID: "com.sumaya369"
+        BUNDLE_ID: "app.sumaya369.net"
       flutter: stable
       xcode: latest
       cocoapods: default
