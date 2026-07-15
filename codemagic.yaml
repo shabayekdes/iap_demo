@@ -1,0 +1,64 @@
+# Codemagic CI/CD configuration for iap_demo
+# Builds a signed AD-HOC iOS IPA and makes it installable on registered real devices.
+# Signing is automatic via an App Store Connect API key (set up as an integration in the Codemagic UI).
+#
+# One-time setup in the Codemagic UI (Teams > Integrations > Developer Portal / App Store Connect):
+#   1. Add an App Store Connect API key (.p8 + Key ID + Issuer ID). Note the integration name
+#      and put it below under `integrations.app_store_connect`.
+#   2. Register your test devices' UDIDs in the Apple Developer portal (Certificates,
+#      Identifiers & Profiles > Devices). Ad-hoc profiles only install on registered UDIDs.
+#      You can auto-register a device via: app-store-connect devices register (see docs).
+#   3. Make sure the bundle identifier below is registered to your Apple Developer team.
+
+workflows:
+  ios-adhoc:
+    name: iOS Ad-Hoc (real device)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      # Replace with the name you gave your App Store Connect API key integration in the Codemagic UI.
+      app_store_connect: CODEMAGIC_ASC_API_KEY
+
+    environment:
+      ios_signing:
+        distribution_type: ad_hoc
+        bundle_identifier: com.example.iapDemo
+      vars:
+        BUNDLE_ID: "com.example.iapDemo"
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+      - name: Get Flutter packages
+        script: flutter pub get
+
+      - name: Install CocoaPods dependencies
+        script: find . -name "Podfile" -execdir pod install \;
+
+      - name: Fetch signing files & apply provisioning profiles
+        # Uses the ios_signing block + App Store Connect integration to fetch/create an
+        # ad-hoc distribution cert and a provisioning profile covering registered devices,
+        # then writes ~/export_options.plist for the build step.
+        script: xcode-project use-profiles
+
+      - name: Flutter build IPA (ad-hoc)
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+    publishing:
+      # Codemagic emails a download/install link for the ad-hoc IPA. Open it on the
+      # registered device (over the air) or install via Apple Configurator / Finder.
+      email:
+        recipients:
+          - esmail.shabayek@gmail.com
+        notify:
+          success: true
+          failure: true
