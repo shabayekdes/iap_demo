@@ -7,7 +7,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 /// configuration file (for local testing) and in App Store Connect
 /// (for sandbox / production).
 class IapProducts {
-  static const String coins = 'app.sumaya369.net.coins'; // consumable
+  static const String coins = 'MAPNEIGHBORHOODS'; // consumable (approved in App Store Connect)
   static const String monthPass =
       'app.sumaya369.net.month_pass'; // non-renewing subscription
 
