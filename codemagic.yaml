@@ -1,14 +1,19 @@
 # Codemagic CI/CD configuration for iap_demo
-# Builds a signed AD-HOC iOS IPA and makes it installable on registered real devices.
-# Signing is automatic via an App Store Connect API key (set up as an integration in the Codemagic UI).
+# Builds a signed AD-HOC iOS IPA installable on registered real devices.
 #
-# One-time setup in the Codemagic UI (Teams > Integrations > Developer Portal / App Store Connect):
-#   1. Add an App Store Connect API key (.p8 + Key ID + Issuer ID). Note the integration name
-#      and put it below under `integrations.app_store_connect`.
-#   2. Register your test devices' UDIDs in the Apple Developer portal (Certificates,
-#      Identifiers & Profiles > Devices). Ad-hoc profiles only install on registered UDIDs.
-#      You can auto-register a device via: app-store-connect devices register (see docs).
-#   3. Make sure the bundle identifier below is registered to your Apple Developer team.
+# Mirrors the proven ad-hoc recipe from the lax_mobile project:
+#   - manual `fetch-signing-files --create` (NOT the ios_signing block, which does
+#     not reliably create ad-hoc profiles)
+#   - a persisted private key so Apple's distribution-certificate cap isn't hit
+#   - `keychain initialize` + `keychain add-certificates` to load the cert
+#   - `use-profiles` AFTER `pod install`, which resets signing to automatic
+#
+# Requirements in the Codemagic UI:
+#   1. App Store Connect integration named exactly "Sumaya369 Codemagic API Key".
+#   2. CERT_PRIVATE_KEY_B64 available to this app (base64 of a PEM RSA private key).
+#      Reuse the same one as lax_mobile -- the distribution certificate is per Apple
+#      team, not per app. Make its variable group shared, or add the var to this app.
+#   3. The test device's UDID registered in the Apple Developer portal.
 
 workflows:
   ios-adhoc:
@@ -16,45 +21,57 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 60
 
-    integrations:
-      # Replace with the name you gave your App Store Connect API key integration in the Codemagic UI.
-      app_store_connect: CODEMAGIC_ASC_API_KEY
-
     environment:
-      ios_signing:
-        distribution_type: ad_hoc
-        bundle_identifier: app.sumaya369.net
-      vars:
-        BUNDLE_ID: "app.sumaya369.net"
-      flutter: stable
+      # pubspec requires Dart sdk ^3.12.2, which ships with Flutter 3.44.2.
+      flutter: 3.44.2
       xcode: latest
       cocoapods: default
+      vars:
+        BUNDLE_ID: "app.sumaya369.net"
+
+    integrations:
+      app_store_connect: Sumaya369 Codemagic API Key
 
     scripts:
+      - name: List registered devices (diagnostic)
+        # An ad-hoc profile cannot exist without at least one registered device.
+        # An empty list here is the cause of "No matching profiles found".
+        script: app-store-connect devices list --platform IOS || true
+
+      - name: Create distribution certificate & ad-hoc profile
+        script: |
+          # Reuse ONE persisted private key across builds. Apple caps the number of
+          # distribution certificates, so minting a fresh one every build eventually
+          # fails with a 409. fetch-signing-files finds the cert matching this key,
+          # or creates it once, then builds the ad-hoc profile.
+          CERT_ARG=""
+          if [ -n "$CERT_PRIVATE_KEY_B64" ]; then
+            echo "$CERT_PRIVATE_KEY_B64" | base64 --decode > /tmp/ios_dist_key.pem
+            CERT_ARG="--certificate-key=@file:/tmp/ios_dist_key.pem"
+          else
+            echo "WARNING: CERT_PRIVATE_KEY_B64 is not set. A new distribution"
+            echo "certificate will be created, which may hit Apple's cert limit (409)."
+          fi
+
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --platform IOS --type IOS_APP_ADHOC \
+            $CERT_ARG --create
+
+          keychain initialize
+          keychain add-certificates
+
       - name: Get Flutter packages
         script: flutter pub get
 
-      - name: Install CocoaPods dependencies
+      - name: Install pods
         script: find . -name "Podfile" -execdir pod install \;
 
-      - name: List registered devices (diagnostic)
-        # An ad-hoc profile cannot exist without at least one registered device.
-        # If this prints an empty list, that is why signing fails.
-        script: app-store-connect devices list --platform IOS || true
+      - name: Set up code signing settings on Xcode project
+        # Must run AFTER pod install -- pod install regenerates the project and
+        # resets signing to automatic. Writes /Users/builder/export_options.plist.
+        script: xcode-project use-profiles --custom-export-options='{"manageAppVersionAndBuildNumber":false}'
 
-      - name: Fetch or create ad-hoc signing files
-        # --create makes profile/certificate creation explicit rather than relying on
-        # the ios_signing block alone, and fails loudly if the API key lacks permission.
-        script: |
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_ADHOC \
-            --create
-
-      - name: Apply provisioning profiles to the Xcode project
-        # Writes /Users/builder/export_options.plist for the build step.
-        script: xcode-project use-profiles
-
-      - name: Flutter build IPA (ad-hoc)
+      - name: Build ad-hoc IPA
         script: |
           flutter build ipa --release \
             --export-options-plist=/Users/builder/export_options.plist
@@ -62,11 +79,10 @@ workflows:
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
-      - flutter_drive.log
 
     publishing:
       # Codemagic emails a download/install link for the ad-hoc IPA. Open it on the
-      # registered device (over the air) or install via Apple Configurator / Finder.
+      # registered device to install over the air.
       email:
         recipients:
           - esmail.shabayek@gmail.com
