@@ -8,7 +8,7 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 /// (for sandbox / production).
 class IapProducts {
   /// Consumable, approved.
-  static const String coins = 'MAPNEIGHBORHOODS';
+  static const String coins = 'com.sumaya369.course_tmryn_altdmyr_althaty';
 
   /// Non-renewing subscription ("Test Course IAP - Development"). Products are
   /// fetchable in sandbox from "Ready to Submit" onwards, so "Waiting for
