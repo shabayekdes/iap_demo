@@ -7,11 +7,15 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 /// configuration file (for local testing) and in App Store Connect
 /// (for sandbox / production).
 class IapProducts {
-  static const String coins = 'MAPNEIGHBORHOODS'; // consumable (approved in App Store Connect)
-  static const String monthPass =
-      'app.sumaya369.net.month_pass'; // non-renewing subscription
+  /// Consumable, approved.
+  static const String coins = 'MAPNEIGHBORHOODS';
 
-  static const Set<String> ids = {coins, monthPass};
+  /// Non-renewing subscription ("Test Course IAP - Development"). Products are
+  /// fetchable in sandbox from "Ready to Submit" onwards, so "Waiting for
+  /// Review" is fine -- approval is only needed for production.
+  static const String courseNonSub = 'com.sumaya369.courseNonSubscription';
+
+  static const Set<String> ids = {coins, courseNonSub};
 }
 
 /// Prefix every line so device logs can be filtered from the noise, e.g.

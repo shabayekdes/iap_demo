@@ -12,8 +12,8 @@
           "locale" : "en_US"
         }
       ],
-      "productID" : "app.sumaya369.net.month_pass",
-      "referenceName" : "Month Pass",
+      "productID" : "com.sumaya369.courseNonSubscription",
+      "referenceName" : "Test Course IAP - Development",
       "type" : "NonRenewingSubscription"
     }
   ],
