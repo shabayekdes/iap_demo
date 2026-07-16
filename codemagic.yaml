@@ -26,6 +26,13 @@ workflows:
       flutter: 3.44.2
       xcode: latest
       cocoapods: default
+      groups:
+        # Supplies CERT_PRIVATE_KEY_B64. A workflow only receives variables from
+        # groups it declares here -- without this the variable is simply not set.
+        # Reuses the same distribution certificate as lax_mobile: the certificate
+        # is per Apple team, not per app, so this avoids minting a second one and
+        # hitting Apple's certificate cap.
+        - lax_env_variables
       vars:
         BUNDLE_ID: "app.sumaya369.net"
 
