@@ -37,10 +37,21 @@ workflows:
       - name: Install CocoaPods dependencies
         script: find . -name "Podfile" -execdir pod install \;
 
-      - name: Fetch signing files & apply provisioning profiles
-        # Uses the ios_signing block + App Store Connect integration to fetch/create an
-        # ad-hoc distribution cert and a provisioning profile covering registered devices,
-        # then writes ~/export_options.plist for the build step.
+      - name: List registered devices (diagnostic)
+        # An ad-hoc profile cannot exist without at least one registered device.
+        # If this prints an empty list, that is why signing fails.
+        script: app-store-connect devices list --platform IOS || true
+
+      - name: Fetch or create ad-hoc signing files
+        # --create makes profile/certificate creation explicit rather than relying on
+        # the ios_signing block alone, and fails loudly if the API key lacks permission.
+        script: |
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_ADHOC \
+            --create
+
+      - name: Apply provisioning profiles to the Xcode project
+        # Writes /Users/builder/export_options.plist for the build step.
         script: xcode-project use-profiles
 
       - name: Flutter build IPA (ad-hoc)
