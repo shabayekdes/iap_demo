@@ -4,6 +4,13 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import 'iap_service.dart';
 
 void main() {
+  // Matches the [IAP] prefix used by IapService so one grep catches everything:
+  //   idevicesyslog | grep IAP
+  debugPrint('[IAP] app starting');
+  FlutterError.onError = (FlutterErrorDetails details) {
+    debugPrint('[IAP] FLUTTER ERROR: ${details.exceptionAsString()}');
+    FlutterError.presentError(details);
+  };
   runApp(const MyApp());
 }
 
@@ -90,7 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    if (_iap.products.isEmpty) {
+    if (_iap.products.isEmpty && _iap.notFoundIds.isEmpty) {
       return const Padding(
         padding: EdgeInsets.all(24),
         child: Text(
@@ -105,22 +112,70 @@ class _HomeScreenState extends State<HomeScreen> {
       padding: const EdgeInsets.all(24),
       shrinkWrap: true,
       children: [
-        const Text(
-          'Tap a button to purchase',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 24),
-        for (final ProductDetails product in _iap.products)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: _BuyButton(
-              product: product,
-              busy: _iap.purchasingId == product.id,
-              onPressed: () => _iap.buy(product),
+        if (_iap.products.isNotEmpty) ...<Widget>[
+          const Text(
+            'Tap a button to purchase',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 24),
+          for (final ProductDetails product in _iap.products)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: _BuyButton(
+                product: product,
+                busy: _iap.purchasingId == product.id,
+                onPressed: () => _iap.buy(product),
+              ),
+            ),
+        ],
+        if (_iap.notFoundIds.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 8),
+          Text(
+            'Unavailable (${_iap.notFoundIds.length})',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'The store did not return these products. They are probably missing '
+            'from App Store Connect, or not cleared for sale.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 12),
+          for (final String id in _iap.notFoundIds)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: _UnavailableProduct(id: id),
+            ),
+        ],
       ],
+    );
+  }
+}
+
+/// A product the store did not recognise. Rendered disabled so a missing
+/// product ID is visible rather than silently absent from the list.
+class _UnavailableProduct extends StatelessWidget {
+  const _UnavailableProduct({required this.id});
+
+  final String id;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton.tonalIcon(
+      onPressed: null,
+      style: FilledButton.styleFrom(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+      ),
+      icon: const Icon(Icons.error_outline, size: 18),
+      label: Text('$id — not found'),
     );
   }
 }
