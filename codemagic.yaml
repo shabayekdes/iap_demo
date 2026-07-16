@@ -44,18 +44,21 @@ workflows:
           # distribution certificates, so minting a fresh one every build eventually
           # fails with a 409. fetch-signing-files finds the cert matching this key,
           # or creates it once, then builds the ad-hoc profile.
-          CERT_ARG=""
-          if [ -n "$CERT_PRIVATE_KEY_B64" ]; then
-            echo "$CERT_PRIVATE_KEY_B64" | base64 --decode > /tmp/ios_dist_key.pem
-            CERT_ARG="--certificate-key=@file:/tmp/ios_dist_key.pem"
-          else
-            echo "WARNING: CERT_PRIVATE_KEY_B64 is not set. A new distribution"
-            echo "certificate will be created, which may hit Apple's cert limit (409)."
+          # fetch-signing-files cannot save a certificate without a private key
+          # ("Cannot save Signing Certificates without certificate private key"),
+          # so this variable is required -- fail fast with a useful message.
+          if [ -z "$CERT_PRIVATE_KEY_B64" ]; then
+            echo "ERROR: CERT_PRIVATE_KEY_B64 is not set."
+            echo "Add it as a SECURE environment variable for this app in Codemagic."
+            echo "It must be the base64 of a PEM RSA private key (base64 -w0 key.pem)."
+            exit 1
           fi
+
+          echo "$CERT_PRIVATE_KEY_B64" | base64 --decode > /tmp/ios_dist_key.pem
 
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --platform IOS --type IOS_APP_ADHOC \
-            $CERT_ARG --create
+            --certificate-key=@file:/tmp/ios_dist_key.pem --create
 
           keychain initialize
           keychain add-certificates
